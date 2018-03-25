@@ -1,4 +1,5 @@
 from pathlib import Path
+from random import choice
 import json
 import wikipedia
 import requests
@@ -9,6 +10,7 @@ def format_name(name, in_name=True):
     for the data store. False if retrieving data."""
     if in_name:
         return name.replace('kiy', 'ky').replace(' ', '_').lower()
+            # richard_arnold throws DisambiguationError, so change it
     else:
         return name.replace('_', ' ').title()
 
@@ -37,45 +39,44 @@ class AstronautDictionary:
         with self.data_file.open('w+') as f:
             json.dump(self.astro_dict, f)
 
-    def set_data(self, astronaut):
+    def get_astronaut(self, astronaut):
         """"""
-        # format the name
         astronaut = format_name(astronaut)
+        
+        # richard_arnold throws DisambiguationError, so change it
+        if astronaut == 'richard_arnold':
+            astronaut = 'richard_r_arnold'
 
-        if astronaut not in self.astro_dict:
+        if astronaut in self.astro_dict:
+            return self.astro_dict[astronaut]
+        else:
             try:
-                # if entry does not exist, get the data
-                astro = wikipedia.page(astronaut)
-                # create empty dictionary
                 astro_data = {}
-
+                astro = wikipedia.page(astronaut)
+                print(astro)
+                astro_data['display_name'] = format_name(astronaut, False)
                 astro_data['url'] = astro.url
-                astro_data['summary'] = wikipedia.summary(astronaut)
-                # then add it to the dictionary
+                astro_data['summary'] = astro.summary
+                # TODO: get official image
+                # add it to the dictionary
                 self.astro_dict[astronaut] = astro_data
                 # save dictionary
                 self._save()
             except wikipedia.exceptions.PageError:
-                # do nothing
-                pass
+                print("PAGE ERROR")
             except wikipedia.exceptions.DisambiguationError:
-                pass
+                print("DISAMBIGUATION ERROR")
+            finally:
+                return self.astro_dict[astronaut]
 
-    def get_data(self):
-        # return copy of current dictionary
-        return self.astro_dict.copy()
+    def get_astronauts(self):
+        astronaut_data = []
+        astronauts = requests.get('http://api.open-notify.org/astros.json').json()
+        # fetch the data
+        for astronaut in astronauts['people']:
+            astronaut_data.append(self.get_astronaut(astronaut['name']))
+        return astronaut_data
 
 
 if __name__ == '__main__':
-    ad = AstronautDictionary('./data.json')
-    x = None
-    # get list of all astronauts
-    astronauts = requests.get('http://api.open-notify.org/astros.json').json()
-    # fetch the data
-    for astronaut in astronauts['people']:
-        ad.set_data(astronaut['name'])
-
-    astronauts = ad.get_data()
-    for astronaut in astronauts:
-        name = format_name(astronaut, False)
-        print(f"\n{name}\n{astronauts[astronaut]['summary']}\n{astronauts[astronaut]['url']}")
+   pass
